@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>When do I press play?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#E8E6F4;--ink:#1A1838;--muted:#5C5A7E;--panel:#F7F6FD;--line:#BDBAD9;--accent:#FF5A1F;--disc:#1A1838;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#14122B;--ink:#ECEBFA;--muted:#A3A0CC;--panel:#1E1B3F;--line:#403C78;--accent:#FF7A45;--disc:#0A0919;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Bricolage Grotesque','Helvetica Neue',Arial,sans-serif;line-height:1.5;min-height:100vh;display:flex;justify-content:center;padding:32px 20px}
+main{width:100%;max-width:520px}
+h1{font-size:clamp(2rem,8vw,2.8rem);font-weight:800;line-height:1.05;margin:0 0 12px;letter-spacing:-.02em}
+.sub{color:var(--muted);margin:0 0 28px;max-width:44ch}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.fields label:last-child{grid-column:1/-1}
+label{display:flex;flex-direction:column;gap:6px;font-weight:600;font-size:.95rem}
+input{font:inherit;font-weight:400;font-size:1.1rem;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
+input:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+.hint{font-weight:400;color:var(--muted);font-size:.85rem}
+#err{color:var(--accent);min-height:1.5em;margin:12px 0 0;font-weight:600}
+#result{margin-top:12px;text-align:center}
+.disc{position:relative;width:min(320px,86vw);aspect-ratio:1;margin:0 auto 22px;border-radius:50%;background:var(--disc);border:1.5px solid var(--line);container-type:inline-size;overflow:hidden}
+.grooves{position:absolute;inset:0;border-radius:50%;background:
+ conic-gradient(from 0deg,transparent 0 8%,rgba(255,255,255,.14) 12%,transparent 18% 50%,rgba(255,255,255,.14) 62%,transparent 68%),
+ repeating-radial-gradient(circle,transparent 0 2px,rgba(255,255,255,.06) 2px 3px);
+ animation:spin 16s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.grooves{animation:none}}
+.label{position:absolute;inset:24%;border-radius:50%;background:var(--accent);color:#1A1838;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.label small{font-size:5.2cqw;font-weight:600}
+.label strong{font-size:32px;font-size:9.5cqw;font-weight:800;line-height:1.1;white-space:nowrap}
+.label::after{content:"";position:absolute;width:3.5cqw;height:3.5cqw;border-radius:50%;background:var(--disc);bottom:11%}
+#when{font-size:1.25rem;font-weight:600;margin:0 0 4px}
+#end,#count{margin:0;color:var(--muted)}
+#count{font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<main>
+  <h1>When do I press play?</h1>
+  <p class="sub">Enter when you need to arrive and how long the album is. You'll get the moment to start it so the last track ends right on time.</p>
+
+  <div class="fields">
+    <label>Arrive at
+      <input id="arrive" type="time">
+    </label>
+    <label>Album length
+      <input id="len" type="text" value="45:00" autocomplete="off" aria-describedby="lenhint">
+      <span class="hint" id="lenhint">Like 42:30 or 1:12:05. Plain numbers are minutes.</span>
+    </label>
+    <label>Minutes to spare (optional)
+      <input id="spare" type="number" min="0" value="0" inputmode="numeric">
+    </label>
+  </div>
+  <p id="err" role="alert"></p>
+
+  <section id="result">
+    <div class="disc">
+      <div class="grooves"></div>
+      <div class="label"><small id="lblTop"></small><strong id="lblTime"></strong></div>
+    </div>
+    <p id="when"></p>
+    <p id="end"></p>
+    <p id="count"></p>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+
+// Default arrival: about an hour from now, rounded up to 5 minutes
+(() => {
+  const d = new Date(Date.now() + 3600000);
+  d.setMinutes(Math.ceil(d.getMinutes() / 5) * 5, 0, 0);
+  $('arrive').value = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+})();
+
+function parseLen(t) {
+  t = t.trim();
+  if (!t) return null;
+  if (/^\d+(\.\d+)?$/.test(t)) return parseFloat(t) * 60 || null;
+  const p = t.split(':');
+  if (p.length > 3 || p.some(x => !/^\d+$/.test(x))) return null;
+  const n = p.map(Number);
+  const s = n.length === 2 ? n[0] * 60 + n[1] : n[0] * 3600 + n[1] * 60 + n[2];
+  return s > 0 ? s : null;
+}
+
+function fmtDur(total) {
+  const h = Math.floor(total / 3600), m = Math.floor(total % 3600 / 60), s = total % 60;
+  return [h && h + ' h', m && m + ' min', s && !h && s + ' s'].filter(Boolean).join(' ') || '0 s';
+}
+
+const tf = (d, sec) => d.toLocaleTimeString([], sec
+  ? { hour: 'numeric', minute: '2-digit', second: '2-digit' }
+  : { hour: 'numeric', minute: '2-digit' });
+
+function dayWord(d, now) {
+  const a = new Date(now).setHours(0, 0, 0, 0), b = new Date(d).setHours(0, 0, 0, 0);
+  const diff = Math.round((b - a) / 86400000);
+  if (diff === 0) return '';
+  return diff === 1 ? ' tomorrow' : ' on ' + d.toLocaleDateString([], { weekday: 'long' });
+}
+
+function render() {
+  const now = new Date();
+  const secs = parseLen($('len').value);
+
+  if (!$('arrive').value) { fail('Pick the time you need to arrive.'); return; }
+  if (secs == null) { fail('Enter the album length like 42:30, 1:12:05, or just minutes.'); return; }
+  $('err').textContent = '';
+  $('result').hidden = false;
+
+  const [h, m] = $('arrive').value.split(':').map(Number);
+  const arrive = new Date(now);
+  arrive.setHours(h, m, 0, 0);
+  if (arrive <= now) arrive.setDate(arrive.getDate() + 1); // next time that clock reading happens
+
+  const spare = Math.max(0, parseFloat($('spare').value) || 0);
+  const target = new Date(arrive.getTime() - spare * 60000);
+  const start = new Date(target.getTime() - secs * 1000);
+
+  if (start <= now) {
+    const over = Math.round((now.getTime() + secs * 1000 - target.getTime()) / 1000);
+    $('lblTop').textContent = 'Press play';
+    $('lblTime').textContent = 'now';
+    $('when').textContent = 'Not enough time for the whole album.';
+    $('end').textContent = 'If you start now, it ends ' + fmtDur(over) + ' after ' + tf(target) + '.';
+    $('count').textContent = 'Album length: ' + fmtDur(Math.round(secs));
+    return;
+  }
+
+  $('lblTop').textContent = 'Press play at';
+  $('lblTime').textContent = tf(start);
+  const exact = start.getSeconds() ? ' (' + tf(start, true) + ' exactly)' : '';
+  $('when').textContent = 'Start at ' + tf(start) + dayWord(start, now) + exact;
+  $('end').textContent = 'The ' + fmtDur(Math.round(secs)) + ' album ends at ' + tf(target) +
+    (spare ? ', ' + spare + ' min before you arrive at ' + tf(arrive) + '.' : ', right when you arrive.');
+  $('count').textContent = 'That is in ' + fmtDur(Math.round((start - now) / 1000)) + '.';
+}
+
+function fail(msg) { $('err').textContent = msg; $('result').hidden = true; }
+
+['arrive', 'len', 'spare'].forEach(id => $(id).addEventListener('input', render));
+render();
+setInterval(render, 1000);
+</script>
+</body>
+</html>
