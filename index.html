@@ -44,6 +44,9 @@ input:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
 #end,#count{margin:0;color:var(--muted)}
 #count{font-variant-numeric:tabular-nums}
 [hidden]{display:none!important}
+.fields label:last-child{grid-column:1/-1}
+.link{font:inherit;background:none;border:0;padding:0;color:var(--ink);text-decoration:underline;cursor:pointer}
+.fields + .note{margin:10px 0 0}
 .tabs{display:flex;gap:6px;background:var(--panel);border:1.5px solid var(--line);border-radius:12px;padding:4px;margin:0 0 22px}
 .tabs button{flex:1;font:inherit;font-weight:600;padding:10px;border:0;border-radius:9px;background:none;color:var(--muted);cursor:pointer}
 .tabs button[aria-selected=true]{background:var(--ink);color:var(--bg)}
@@ -81,6 +84,9 @@ input:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
   </div>
 
   <div class="fields">
+    <label>Start from (optional)
+      <input id="from" type="time">
+    </label>
     <label>Arrive at
       <input id="arrive" type="time">
     </label>
@@ -88,6 +94,7 @@ input:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
       <input id="spare" type="number" min="0" value="0" inputmode="numeric">
     </label>
   </div>
+  <p class="note">Leave "Start from" blank to count from right now, or set a time to plan ahead. <button type="button" class="link" id="fromClear" hidden>Clear start</button></p>
   <p id="err" role="alert"></p>
 
   <div id="paneManual" role="tabpanel">
@@ -190,6 +197,16 @@ function dayWord(d, now) {
   return diff === 1 ? ' tomorrow' : ' on ' + d.toLocaleDateString([], { weekday: 'long' });
 }
 
+// The listening window opens at "Start from" if it's set (and still ahead of us), otherwise right now.
+function windowStart(now, arrive) {
+  const v = $('from').value;
+  if (!v) return now;
+  const [h, m] = v.split(':').map(Number);
+  const f = new Date(arrive); f.setHours(h, m, 0, 0);
+  if (f >= arrive) f.setDate(f.getDate() - 1);   // a start time after the arrival time means the day before
+  return f > now ? f : now;
+}
+
 function renderManual() {
   const now = new Date();
   const secs = parseLen($('len').value);
@@ -208,12 +225,13 @@ function renderManual() {
   const target = new Date(arrive.getTime() - spare * 60000);
   const start = new Date(target.getTime() - secs * 1000);
 
-  if (start <= now) {
-    const over = Math.round((now.getTime() + secs * 1000 - target.getTime()) / 1000);
+  const win = windowStart(now, arrive), planned = win > now;
+  if (start < win) {
+    const over = Math.round((win.getTime() + secs * 1000 - target.getTime()) / 1000);
     $('lblTop').textContent = 'Press play';
-    $('lblTime').textContent = 'now';
+    $('lblTime').textContent = planned ? tf(win) : 'now';
     $('when').textContent = 'Not enough time for the whole album.';
-    $('end').textContent = 'If you start now, it ends ' + fmtDur(over) + ' after ' + tf(target) + '.';
+    $('end').textContent = 'If you start ' + (planned ? 'at ' + tf(win) : 'now') + ', it ends ' + fmtDur(over) + ' after ' + tf(target) + '.';
     $('count').textContent = 'Album length: ' + fmtDur(Math.round(secs));
     return;
   }
@@ -372,10 +390,11 @@ function renderLibrary() {
   if (arrive <= now) arrive.setDate(arrive.getDate() + 1);
   const spare = Math.max(0, parseFloat($('spare').value) || 0);
   const target = new Date(arrive.getTime() - spare * 60000);
-  const avail = Math.floor((target - now) / 1000);
+  const win = windowStart(now, arrive);
+  const avail = Math.floor((target - win) / 1000);
   const fits = albums.filter(a => a.s <= avail);
   $('libTop').textContent = avail > 0
-    ? 'You have ' + fmtDur(avail) + ' to fill. ' + fits.length + ' of your ' + albums.length + ' albums fit.'
+    ? (win > now ? 'From ' + tf(win) + ' you have ' : 'You have ') + fmtDur(avail) + ' to fill. ' + fits.length + ' of your ' + albums.length + ' albums fit.'
     : 'That time has already passed.';
 
   const q = $('q').value.trim().toLowerCase(), sort = $('sort').value;
@@ -417,7 +436,9 @@ $('btnDisc').onclick = () => disconnect('');
   setTab(back || store.get('tab') === 'lib' ? 'lib' : 'manual');
 })();
 
-['arrive', 'len', 'spare'].forEach(id => $(id).addEventListener('input', render));
+['arrive', 'from', 'len', 'spare'].forEach(id => $(id).addEventListener('input', render));
+$('from').addEventListener('input', () => { $('fromClear').hidden = !$('from').value; });
+$('fromClear').onclick = () => { $('from').value = ''; $('fromClear').hidden = true; render(); };
 render();
 setInterval(render, 1000);
 </script>
