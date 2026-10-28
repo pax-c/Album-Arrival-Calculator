@@ -23,7 +23,6 @@ main{width:100%;max-width:520px}
 h1{font-size:clamp(2rem,8vw,2.8rem);font-weight:800;line-height:1.05;margin:0 0 12px;letter-spacing:-.02em}
 .sub{color:var(--muted);margin:0 0 28px;max-width:44ch}
 .fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.fields label:last-child{grid-column:1/-1}
 label{display:flex;flex-direction:column;gap:6px;font-weight:600;font-size:.95rem}
 input{font:inherit;font-weight:400;font-size:1.1rem;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink);width:100%}
 input:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
@@ -44,6 +43,31 @@ input:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
 #when{font-size:1.25rem;font-weight:600;margin:0 0 4px}
 #end,#count{margin:0;color:var(--muted)}
 #count{font-variant-numeric:tabular-nums}
+[hidden]{display:none!important}
+.tabs{display:flex;gap:6px;background:var(--panel);border:1.5px solid var(--line);border-radius:12px;padding:4px;margin:0 0 22px}
+.tabs button{flex:1;font:inherit;font-weight:600;padding:10px;border:0;border-radius:9px;background:none;color:var(--muted);cursor:pointer}
+.tabs button[aria-selected=true]{background:var(--ink);color:var(--bg)}
+.tabs button:focus-visible,.btn:focus-visible,.album:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.btn{font:inherit;font-weight:600;padding:11px 18px;border-radius:10px;border:1.5px solid var(--accent);background:var(--accent);color:#1A1838;cursor:pointer}
+.btn.ghost{background:none;border-color:var(--line);color:var(--ink)}
+.row{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.len{margin-top:14px}
+.tools{display:flex;gap:10px;margin:18px 0 12px}
+.tools input{flex:1;min-width:0}
+.tools select{font:inherit;padding:12px;border:1.5px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink)}
+#libTop{margin:0 0 12px;font-weight:600}
+.albums{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.album{display:flex;gap:12px;align-items:center;background:var(--panel);border:1.5px solid var(--line);border-radius:12px;padding:10px;color:inherit;text-decoration:none}
+.album img{width:56px;height:56px;border-radius:6px;object-fit:cover;background:var(--line);flex:none}
+.album .meta{min-width:0;flex:1}
+.album b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.album .meta span{color:var(--muted);font-size:.9rem}
+.album .at{text-align:right;flex:none;font-weight:800;font-variant-numeric:tabular-nums}
+.album .at span{display:block;font-weight:400;font-size:.8rem;color:var(--muted)}
+.setup{background:var(--panel);border:1.5px solid var(--line);border-radius:12px;padding:16px}
+.setup ol{padding-left:1.2em;margin:8px 0 14px}
+.setup code{word-break:break-all;background:var(--bg);padding:2px 6px;border-radius:6px;user-select:all}
+.note{color:var(--muted);font-size:.85rem}
 </style>
 </head>
 <body>
@@ -51,29 +75,80 @@ input:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
   <h1>When do I press play?</h1>
   <p class="sub">Enter when you need to arrive and how long the album is. You'll get the moment to start it so the last track ends right on time.</p>
 
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tabManual" aria-selected="true" aria-controls="paneManual">Manual</button>
+    <button role="tab" id="tabLib" aria-selected="false" aria-controls="paneLib">My library</button>
+  </div>
+
   <div class="fields">
     <label>Arrive at
       <input id="arrive" type="time">
     </label>
-    <label>Album length
-      <input id="len" type="text" value="45:00" autocomplete="off" aria-describedby="lenhint">
-      <span class="hint" id="lenhint">Like 42:30 or 1:12:05. Plain numbers are minutes.</span>
-    </label>
-    <label>Minutes to spare (optional)
+    <label>Minutes to spare
       <input id="spare" type="number" min="0" value="0" inputmode="numeric">
     </label>
   </div>
   <p id="err" role="alert"></p>
 
-  <section id="result">
-    <div class="disc">
-      <div class="grooves"></div>
-      <div class="label"><small id="lblTop"></small><strong id="lblTime"></strong></div>
+  <div id="paneManual" role="tabpanel">
+    <label class="len">Album length
+      <input id="len" type="text" value="45:00" autocomplete="off" aria-describedby="lenhint">
+      <span class="hint" id="lenhint">Like 42:30 or 1:12:05. Plain numbers are minutes.</span>
+    </label>
+    <section id="result">
+      <div class="disc">
+        <div class="grooves"></div>
+        <div class="label"><small id="lblTop"></small><strong id="lblTime"></strong></div>
+      </div>
+      <p id="when"></p>
+      <p id="end"></p>
+      <p id="count"></p>
+    </section>
+  </div>
+
+  <div id="paneLib" role="tabpanel" hidden>
+    <div id="libSetup" class="setup" hidden>
+      <b>One-time setup</b>
+      <ol>
+        <li>Create an app at <code>developer.spotify.com/dashboard</code> (the app owner needs Spotify Premium).</li>
+        <li>Add this exact Redirect URI: <code id="redir"></code></li>
+        <li>Under User Management, add the Spotify account you'll log in with.</li>
+        <li>Paste the app's Client ID here:</li>
+      </ol>
+      <label>Client ID
+        <input id="cid" type="text" autocomplete="off" spellcheck="false">
+      </label>
+      <div class="row"><button class="btn" id="btnSaveId">Save</button></div>
+      <p class="note">Spotify only allows https redirect addresses, or http://127.0.0.1 for testing on your own computer.</p>
     </div>
-    <p id="when"></p>
-    <p id="end"></p>
-    <p id="count"></p>
-  </section>
+
+    <div id="libConnect" hidden>
+      <p>Connect Spotify to see which of your saved albums fit before you need to arrive.</p>
+      <div class="row">
+        <button class="btn" id="btnConnect">Connect Spotify</button>
+        <button class="btn ghost" id="btnChangeId">Change Client ID</button>
+      </div>
+    </div>
+
+    <div id="libMain" hidden>
+      <div class="tools">
+        <input id="q" type="search" placeholder="Search albums or artists" aria-label="Search albums or artists">
+        <select id="sort" aria-label="Sort">
+          <option value="best">Best fit</option>
+          <option value="short">Shortest</option>
+          <option value="az">A to Z</option>
+        </select>
+      </div>
+      <p id="libTop"></p>
+      <ul id="albums" class="albums"></ul>
+      <p class="note">Saved albums only, not playlists or liked songs. Tap an album to open it in Spotify.</p>
+      <div class="row">
+        <button class="btn ghost" id="btnRefresh">Refresh library</button>
+        <button class="btn ghost" id="btnDisc">Disconnect</button>
+      </div>
+    </div>
+    <p id="libMsg" class="note" role="status"></p>
+  </div>
 </main>
 
 <script>
@@ -113,7 +188,7 @@ function dayWord(d, now) {
   return diff === 1 ? ' tomorrow' : ' on ' + d.toLocaleDateString([], { weekday: 'long' });
 }
 
-function render() {
+function renderManual() {
   const now = new Date();
   const secs = parseLen($('len').value);
 
@@ -151,6 +226,190 @@ function render() {
 }
 
 function fail(msg) { $('err').textContent = msg; $('result').hidden = true; }
+
+/* ===== Tabs + Spotify library ===== */
+const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+  del(k) { try { localStorage.removeItem(k); } catch {} }
+};
+const CLIENT_ID_DEFAULT = ''; // optional: paste your Spotify Client ID here instead of typing it into the app
+const REDIRECT = location.origin + location.pathname.replace(/index\.html$/, '');
+const clientId = () => CLIENT_ID_DEFAULT || store.get('sp_cid') || '';
+let tab = 'manual', lastSig = '', albums = [];
+try { albums = JSON.parse(store.get('sp_lib') || '[]'); } catch {}
+const msg = t => { $('libMsg').textContent = t || ''; };
+
+function view() {
+  const id = !!clientId(), tok = !!store.get('sp_tok');
+  $('libSetup').hidden = id;
+  $('libConnect').hidden = !id || tok;
+  $('libMain').hidden = !(id && tok && albums.length);
+  $('btnChangeId').hidden = !!CLIENT_ID_DEFAULT;
+  lastSig = '';
+}
+
+function setTab(t) {
+  tab = t;
+  $('tabManual').setAttribute('aria-selected', t === 'manual');
+  $('tabLib').setAttribute('aria-selected', t === 'lib');
+  $('paneManual').hidden = t !== 'manual';
+  $('paneLib').hidden = t !== 'lib';
+  $('err').textContent = '';
+  store.set('tab', t);
+  if (t === 'lib') initLibrary();
+  render();
+}
+
+async function initLibrary() {
+  $('redir').textContent = REDIRECT;
+  $('cid').value = store.get('sp_cid') || '';
+  view();
+  if (clientId() && store.get('sp_tok') && !albums.length) await loadLibrary();
+}
+
+/* --- Spotify login (Authorization Code with PKCE, no secret needed) --- */
+const rnd = n => Array.from(crypto.getRandomValues(new Uint8Array(n)), x => 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[x % 62]).join('');
+const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+async function connect() {
+  try {
+    const v = rnd(64);
+    store.set('sp_v', v);
+    const ch = b64u(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v)));
+    location.href = 'https://accounts.spotify.com/authorize?' + new URLSearchParams({
+      client_id: clientId(), response_type: 'code', redirect_uri: REDIRECT,
+      scope: 'user-library-read', code_challenge_method: 'S256', code_challenge: ch
+    });
+  } catch { msg('Login needs the page to be served over https (or from 127.0.0.1), not opened as a local file.'); }
+}
+
+async function tokenReq(params) {
+  const r = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ client_id: clientId(), ...params })
+  });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error_description || j.error || 'Login failed');
+  const old = JSON.parse(store.get('sp_tok') || '{}');
+  store.set('sp_tok', JSON.stringify({ a: j.access_token, r: j.refresh_token || old.r, e: Date.now() + j.expires_in * 1000 - 60000 }));
+}
+
+async function handleRedirect() {
+  const p = new URLSearchParams(location.search);
+  if (!p.has('code') && !p.has('error')) return false;
+  history.replaceState(null, '', location.pathname);
+  if (p.get('error')) { msg('Spotify said: ' + p.get('error')); return true; }
+  try {
+    await tokenReq({ grant_type: 'authorization_code', code: p.get('code'), redirect_uri: REDIRECT, code_verifier: store.get('sp_v') || '' });
+  } catch (e) { msg(e.message); }
+  return true;
+}
+
+async function accessToken() {
+  const t = JSON.parse(store.get('sp_tok') || 'null');
+  if (!t) throw new Error('Session expired');
+  if (Date.now() < t.e) return t.a;
+  try { await tokenReq({ grant_type: 'refresh_token', refresh_token: t.r }); } catch { throw new Error('Session expired'); }
+  return JSON.parse(store.get('sp_tok')).a;
+}
+
+async function api(url) {
+  for (let i = 0; i < 3; i++) {
+    const r = await fetch(url, { headers: { Authorization: 'Bearer ' + await accessToken() } });
+    if (r.status === 429) { await new Promise(s => setTimeout(s, (+r.headers.get('Retry-After') || 2) * 1000)); continue; }
+    if (r.status === 401) throw new Error('Session expired');
+    if (r.status === 403) throw new Error('Spotify refused access. Check that your account is listed under User Management in the Spotify dashboard and the app owner has Premium.');
+    if (!r.ok) throw new Error('Spotify error ' + r.status);
+    return r.json();
+  }
+  throw new Error('Spotify is rate limiting requests. Try again in a minute.');
+}
+
+function disconnect(m) { store.del('sp_tok'); store.del('sp_lib'); albums = []; msg(m); view(); render(); }
+
+async function loadLibrary() {
+  msg('Loading your albums…');
+  try {
+    const out = [];
+    let url = 'https://api.spotify.com/v1/me/albums?limit=50';
+    while (url) {
+      const j = await api(url);
+      for (const { album: a } of j.items) {
+        let items = (a.tracks && a.tracks.items) || [], next = a.tracks && a.tracks.next;
+        while (next) { const n = await api(next); items = items.concat(n.items); next = n.next; }
+        const s = Math.round(items.reduce((t, x) => t + x.duration_ms, 0) / 1000);
+        if (!s) continue;
+        const img = a.images[1] || a.images[0];
+        out.push({ id: a.id, n: a.name, a: a.artists.map(x => x.name).join(', '), i: img ? img.url : '', s, u: a.external_urls.spotify });
+      }
+      url = j.next;
+      msg('Loading your albums… ' + out.length + ' of ' + j.total);
+    }
+    albums = out;
+    store.set('sp_lib', JSON.stringify(out));
+    msg(out.length ? '' : 'No saved albums found in your Spotify library.');
+    view(); render();
+  } catch (e) {
+    if (e.message === 'Session expired') disconnect('Your Spotify session expired. Connect again.');
+    else { msg(e.message); view(); }
+  }
+}
+
+/* --- Library list --- */
+function renderLibrary() {
+  if ($('libMain').hidden) return;
+  if (!$('arrive').value) { $('err').textContent = 'Pick the time you need to arrive.'; $('albums').textContent = ''; $('libTop').textContent = ''; lastSig = ''; return; }
+  $('err').textContent = '';
+  const now = new Date();
+  const [h, m] = $('arrive').value.split(':').map(Number);
+  const arrive = new Date(now); arrive.setHours(h, m, 0, 0);
+  if (arrive <= now) arrive.setDate(arrive.getDate() + 1);
+  const spare = Math.max(0, parseFloat($('spare').value) || 0);
+  const target = new Date(arrive.getTime() - spare * 60000);
+  const avail = Math.floor((target - now) / 1000);
+  const fits = albums.filter(a => a.s <= avail);
+  $('libTop').textContent = avail > 0
+    ? 'You have ' + fmtDur(avail) + ' to fill. ' + fits.length + ' of your ' + albums.length + ' albums fit.'
+    : 'That time has already passed.';
+
+  const q = $('q').value.trim().toLowerCase(), sort = $('sort').value;
+  const list = fits.filter(a => (a.n + ' ' + a.a).toLowerCase().includes(q))
+    .sort({ best: (x, y) => y.s - x.s, short: (x, y) => x.s - y.s, az: (x, y) => x.n.localeCompare(y.n) }[sort]);
+
+  const sig = [list.map(a => a.id).join(), target.getTime(), sort].join('|');
+  if (sig === lastSig) return;   // only rebuild the list when something actually changed
+  lastSig = sig;
+  const ul = $('albums'); ul.textContent = '';
+  if (!list.length) { ul.append(el('li', 'note', q ? 'No matching albums fit.' : 'None of your saved albums fit in the time you have.')); return; }
+  for (const a of list) {
+    const st = new Date(target.getTime() - a.s * 1000);
+    const link = el('a', 'album'); link.href = a.u; link.target = '_blank'; link.rel = 'noopener';
+    const meta = el('div', 'meta'); meta.append(el('b', null, a.n), el('span', null, a.a + ' · ' + fmtDur(a.s)));
+    const at = el('div', 'at', tf(st) + dayWord(st, now)); at.append(el('span', null, 'press play'));
+    if (a.i) { const img = el('img'); img.src = a.i; img.alt = ''; img.loading = 'lazy'; img.width = 56; img.height = 56; link.append(img); }
+    link.append(meta, at);
+    const li = el('li'); li.append(link); ul.append(li);
+  }
+}
+
+function render() { tab === 'manual' ? renderManual() : renderLibrary(); }
+
+$('tabManual').onclick = () => setTab('manual');
+$('tabLib').onclick = () => setTab('lib');
+$('btnSaveId').onclick = () => { const v = $('cid').value.trim(); if (v) { store.set('sp_cid', v); msg(''); view(); } };
+$('btnChangeId').onclick = () => { store.del('sp_cid'); view(); };
+$('btnConnect').onclick = connect;
+$('btnRefresh').onclick = loadLibrary;
+$('btnDisc').onclick = () => disconnect('');
+['q', 'sort'].forEach(id => $(id).addEventListener('input', render));
+
+(async () => {
+  const back = await handleRedirect();
+  setTab(back || store.get('tab') === 'lib' ? 'lib' : 'manual');
+})();
 
 ['arrive', 'len', 'spare'].forEach(id => $(id).addEventListener('input', render));
 render();
