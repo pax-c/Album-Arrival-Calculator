@@ -66,7 +66,7 @@ input:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
 .album .at span{display:block;font-weight:400;font-size:.8rem;color:var(--muted)}
 .setup{background:var(--panel);border:1.5px solid var(--line);border-radius:12px;padding:16px}
 .setup ol{padding-left:1.2em;margin:8px 0 14px}
-.setup code{word-break:break-all;background:var(--bg);padding:2px 6px;border-radius:6px;user-select:all}
+.setup code,.note code{word-break:break-all;background:var(--bg);padding:2px 6px;border-radius:6px;user-select:all}
 .note{color:var(--muted);font-size:.85rem}
 </style>
 </head>
@@ -124,6 +124,7 @@ input:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
 
     <div id="libConnect" hidden>
       <p>Connect Spotify to see which of your saved albums fit before you need to arrive.</p>
+      <p class="note">This page sends Spotify this Redirect URI, so the same one must be saved in your Spotify app: <code id="redir2"></code></p>
       <div class="row">
         <button class="btn" id="btnConnect">Connect Spotify</button>
         <button class="btn ghost" id="btnChangeId">Change Client ID</button>
@@ -264,6 +265,7 @@ function setTab(t) {
 
 async function initLibrary() {
   $('redir').textContent = REDIRECT;
+  $('redir2').textContent = REDIRECT;
   $('cid').value = store.get('sp_cid') || '';
   view();
   if (clientId() && store.get('sp_tok') && !albums.length) await loadLibrary();
